@@ -71,6 +71,7 @@ export interface Options<T> {
   responseValidationStrategy?: FailStrategy;
   responseBodyTrimming?: ResponseTrimming;
   ajvOptions?: Ajv.Options;
+  customizeAjv?: OpenAPI.AjvCustomizer;
 }
 
 /**
@@ -90,6 +91,7 @@ export class OpenApi<T> {
   readonly responseValidationStrategy: FailStrategy;
   readonly responseBodyTrimming: ResponseTrimming;
   readonly ajvOptions?: Ajv.Options;
+  readonly customizeAjv?: OpenAPI.AjvCustomizer;
 
   /**
    * Constructor
@@ -106,13 +108,15 @@ export class OpenApi<T> {
         logger = createLogger(LOG_LEVEL as LogLevel),
         responseValidationStrategy = 'warn',
         responseBodyTrimming = 'failing',
-        ajvOptions
+        ajvOptions,
+        customizeAjv,
       }: Options<T> = {}) {
     this.errorHandler = errorHandler;
     this.logger = logger || createLogger('silent'); // if logger is null, create silent logger
     this.responseValidationStrategy = responseValidationStrategy;
     this.responseBodyTrimming = responseBodyTrimming;
     this.ajvOptions = ajvOptions;
+    this.customizeAjv = customizeAjv;
     this.paramValidator = getAjv({
       ...this.ajvOptions,
       coerceTypes: 'array',
@@ -333,6 +337,9 @@ export class OpenApi<T> {
           ajv._opts.removeAdditional = this.responseBodyTrimming === 'none' ? false : this.responseBodyTrimming;
         }
         // Invoke custom function as well if applicable
+        if (this.customizeAjv) {
+          ajv = this.customizeAjv(ajv, ajvOpts, validationContext);
+        }
         return ajv;
       }
     }, operations, authorizers));
