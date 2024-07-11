@@ -84,7 +84,7 @@ export interface Options<T> {
 export class OpenApi<T> {
   private interceptors: Interceptor<T>[] = [];
   private apiPromises: Promise<OpenAPI.OpenAPIBackend>[] = [];
-  private readonly paramValidator: Ajv.default;
+  private paramValidator!: Ajv.default;
 
   readonly errorHandler: ErrorHandler<T>;
   readonly logger: Logger;
@@ -117,11 +117,18 @@ export class OpenApi<T> {
     this.responseBodyTrimming = responseBodyTrimming;
     this.ajvOptions = ajvOptions;
     this.customizeAjv = customizeAjv;
-    this.paramValidator = getAjv({
-      ...this.ajvOptions,
-      coerceTypes: 'array',
-      strict: false
-    });
+    
+    const createParamValidator = () => {
+      this.paramValidator = getAjv({
+        ...this.ajvOptions,
+        coerceTypes: 'array',
+        strict: false
+      });
+    }
+
+    // the ajv validator leaks memory when used like this, so we recreate it every 10 minutes
+    setInterval(createParamValidator, 1000 * 60 * 10); // 10 minutes 
+    createParamValidator();
   }
 
   private getApis(): Promise<Array<OpenAPI.OpenAPIBackend>> {
